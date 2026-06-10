@@ -80,6 +80,13 @@ New `agent_traces` table: PK=matchId, SK=generatedAt, full tool call log.
 # One-time setup
 pip3 install aws-cdk-lib constructs --break-system-packages
 
+# Secrets must exist in Secrets Manager before first deploy
+aws secretsmanager create-secret --name nrl-predictor/anthropic-api-key --secret-string "sk-ant-..."
+aws secretsmanager create-secret --name nrl-predictor/tavily-api-key --secret-string "tvly-..."
+
+# Bootstrap CDK (once per account/region)
+AWS_DEFAULT_REGION=ap-southeast-2 cdk bootstrap
+
 # Deploy from infra/
 cd infra
 AWS_DEFAULT_REGION=ap-southeast-2 cdk deploy --require-approval never
@@ -87,6 +94,25 @@ AWS_DEFAULT_REGION=ap-southeast-2 cdk deploy --require-approval never
 
 The v2 stack imports v1 DynamoDB tables by name (does NOT recreate them).
 It adds only `agent_traces` as a new table.
+
+### Manual invocation
+
+```bash
+# Full round (orchestrator scrapes draw → fans out to agent per match)
+aws lambda invoke --function-name nrl-predictor-v2-orchestrator \
+  --payload '{"season": 2026, "round": "current"}' \
+  --cli-binary-format raw-in-base64-out --region ap-southeast-2 \
+  response.json && cat response.json
+
+# Single match (agent only)
+aws lambda invoke --function-name nrl-predictor-v2-agent \
+  --payload '{"matchId": "20260115", "round": 15}' \
+  --cli-binary-format raw-in-base64-out --region ap-southeast-2 \
+  response.json && cat response.json
+
+# Tail logs
+aws logs tail /aws/lambda/nrl-predictor-v2-agent --follow --region ap-southeast-2
+```
 
 ## Shadow mode
 
