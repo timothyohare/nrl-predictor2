@@ -1,0 +1,17 @@
+VENUES: dict[str, tuple[float, float]] = {
+    "BlueBet Stadium": (-33.7514, 150.6943),
+    "Suncorp Stadium": (-27.4648, 153.0095),
+    "Accor Stadium": (-33.8469, 151.0630),
+    "AAMI Park": (-37.8250, 144.9836),
+    "Allianz Stadium": (-33.8915, 151.2249),
+    "GIO Stadium": (-35.2109, 149.1263),
+    "McDonald Jones Stadium": (-32.8997, 151.7203),
+    "PointsBet Stadium": (-34.0405, 151.1539),
+    "Cbus Super Stadium": (-28.0057, 153.4145),
+    "Queensland Country Bank Stadium": (-19.2590, 146.8169),
+    "4 Pines Park": (-33.7961, 151.2898),
+    "WIN Stadium": (-34.4248, 150.8939),
+    "CommBank Stadium": (-33.8124, 150.9943),
+    "Leichhardt Oval": (-33.8830, 151.1539),
+    "Allegiant Stadium": (36.0909, -115.1833),
+}
