@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import boto3
 from bs4 import BeautifulSoup
 
+from scrapers.nrl.draw import match_id_from_url
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import Player, TeamSheet, TeamSide
 from scrapers.shared.s3_cache import save_raw
@@ -90,9 +91,11 @@ def lambda_handler(event: dict, context) -> None:
     ts = parse_team_sheet(q_data)
     ts.scraped_at = scraped_at
 
+    # Key by the draw slug (what the agent looks up), NOT the numeric NRL matchId
+    # that parse_team_sheet carries — otherwise the agent never finds the sheet.
     table = boto3.resource("dynamodb").Table(table_name)
     table.put_item(Item={
-        "teamId": ts.match_id,
+        "teamId": match_id_from_url(match_centre_url),
         "round": str(ts.round),
         "matchState": ts.match_state,
         "kickOff": ts.kick_off or "",

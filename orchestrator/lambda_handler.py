@@ -71,9 +71,11 @@ def lambda_handler(event: dict, context) -> dict:
             )
             ts = parse_team_sheet(q_data)
             ts.scraped_at = scraped_at
+            # Key by the draw slug (match.match_id) that the agent is fanned out
+            # with and looks the sheet up by — NOT the numeric NRL matchId on ts.
             teams_table.put_item(Item={
-                "teamId": ts.match_id,
-                "round": str(ts.round),
+                "teamId": match.match_id,
+                "round": str(match.round_number),
                 "matchState": ts.match_state,
                 "kickOff": ts.kick_off or "",
                 "homeTeam": ts.home_team.nick_name,

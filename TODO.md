@@ -10,12 +10,15 @@ and verified: a real run via `tools.local_invoke --aws --real-llm` wrote the fir
 inspector/dashboard now show 1 v2.0 row + 1 trace.
 
 ### Follow-ups (not blocking "it runs")
-- [ ] **Agent runs blind on team sheets.** Trace shows `get_team_sheet` /
-      `get_spine_synergy` erroring: slug matchId (`round-15-warriors-v-sharks`) vs
-      numeric team-sheet id (`20261111530`) mismatch. Agent compensates via web_search
-      but without real team sheets → quality hit. Reconcile the id mapping. (`get_weather`
-      also errored — no forecast for venue/date.)
-- [ ] Run a full round via the orchestrator to confirm scheduled fan-out works.
+- [x] **Agent ran blind on team sheets** (slug vs numeric matchId). Fixed: single
+      source of truth `match_id_from_url()` in `scrapers/nrl/draw.py`; both writers
+      (orchestrator inline + `scrapers/nrl/team_sheet.py` lambda) now key team sheets
+      on the draw slug. Regression test `tests/scrapers/test_team_sheet_id.py`. Gate: 41.
+      **Requires redeploy + a fresh orchestrator scrape** to take effect on live data
+      (existing round-15 sheets are numeric-keyed and now >24h stale anyway).
+- [ ] Redeploy (orchestrator changed) and run a full round via the orchestrator —
+      confirms fan-out + that `get_team_sheet`/`get_spine_synergy` now resolve in traces.
+- [ ] `get_weather` also errored (no forecast for venue/date) — separate, lower priority.
 - [ ] Once scheduled runs are clean, delete the `project_v2_no_live_output` memory.
 
 ---
