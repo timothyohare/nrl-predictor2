@@ -108,3 +108,45 @@ def test_upset_probability_clamped():
             key_player_to_watch="x",
             upset_probability=1.5,
         )
+
+
+# ── first_try_scorer coercion (Haiku emits a stringified / bare list) ─────────
+
+_CANDS = [
+    {"player_name": "Sione", "team": "Warriors", "position": "winger",
+     "probability": 0.18, "rationale": "Edge speed"},
+    {"player_name": "Nicoll-Klokstad", "team": "Warriors", "position": "fullback",
+     "probability": 0.1, "rationale": "Support lines"},
+]
+
+
+def _extended(first_try):
+    return ExtendedPrediction(
+        first_try_scorer=first_try,
+        margin_bracket="6-12",
+        key_player_to_watch="x",
+        upset_probability=0.2,
+    )
+
+
+def test_first_try_scorer_accepts_json_string():
+    """The exact prod failure: a JSON string of a candidate list."""
+    import json
+    e = _extended(json.dumps(_CANDS))
+    assert [c.player_name for c in e.first_try_scorer.candidates] == ["Sione", "Nicoll-Klokstad"]
+
+
+def test_first_try_scorer_accepts_bare_list():
+    e = _extended(_CANDS)
+    assert len(e.first_try_scorer.candidates) == 2
+
+
+def test_first_try_scorer_clamps_to_three():
+    many = [dict(_CANDS[0], player_name=f"P{i}") for i in range(5)]
+    e = _extended(many)
+    assert len(e.first_try_scorer.candidates) == 3
+
+
+def test_first_try_scorer_still_accepts_object():
+    e = _extended(FirstTryPrediction(candidates=[FirstTryScorerCandidate(**_CANDS[0])]))
+    assert e.first_try_scorer.candidates[0].player_name == "Sione"

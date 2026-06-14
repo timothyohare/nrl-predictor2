@@ -2,6 +2,25 @@
 
 Tracking the fix for the bug that has kept v2 at **zero output**. Started 2026-06-14.
 
+## ✅ RESOLVED 2026-06-14 — v2 now produces live output
+
+Two bugs fixed (float→Decimal write crash; extended-node schema coercion), redeployed,
+and verified: a real run via `tools.local_invoke --aws --real-llm` wrote the first
+`v2.0` prediction + a 21-entry agent_trace for `round-15-warriors-v-sharks`. The
+inspector/dashboard now show 1 v2.0 row + 1 trace.
+
+### Follow-ups (not blocking "it runs")
+- [ ] **Agent runs blind on team sheets.** Trace shows `get_team_sheet` /
+      `get_spine_synergy` erroring: slug matchId (`round-15-warriors-v-sharks`) vs
+      numeric team-sheet id (`20261111530`) mismatch. Agent compensates via web_search
+      but without real team sheets → quality hit. Reconcile the id mapping. (`get_weather`
+      also errored — no forecast for venue/date.)
+- [ ] Run a full round via the orchestrator to confirm scheduled fan-out works.
+- [ ] Once scheduled runs are clean, delete the `project_v2_no_live_output` memory.
+
+---
+## Original diagnosis (kept for history)
+
 ## The bug (root cause)
 
 The v2 agent runs the full LangGraph pipeline (~190s of real LLM calls) and then
@@ -56,6 +75,40 @@ and never calls `write_prediction` — the write path was untested.
         --payload '{"season":2026,"round":"current"}' \
         --cli-binary-format raw-in-base64-out --region ap-southeast-2 response.json && cat response.json
       ```
+
+## Bug #2 — Extended node validation crash (found 2026-06-14, after deploy)
+
+The float-write fix worked (got past the write). Next blocker surfaced in
+`agent/nodes/extended.py`: Haiku's structured output returned `first_try_scorer`
+as a **JSON string of a candidate list** instead of a `FirstTryPrediction` object:
+`ValidationError: first_try_scorer Input should be a valid dictionary or instance
+of FirstTryPrediction [input_type=str]`. Non-deterministic — on 06-12 it emitted
+valid structure (reached the write); on 06-14 it stringified the list.
+
+- [x] Fix in schema (`agent/state.py`): `field_validator(mode="before")` on
+      `ExtendedPrediction.first_try_scorer` — json-decodes a string, wraps a bare
+      list as `{"candidates": [...]}`, clamps to top 3.
+- [x] Tests (`tests/agent/test_state.py`): json-string, bare-list, >3 clamp,
+      still-accepts-object. Gate green: 38 passed.
+- [x] Redeployed (CDK, 2026-06-14 ~06:23 + ~08:41 UTC) — both fixes now live.
+- [ ] Verify a real end-to-end run lands a `v2.0` row + trace (see local emulator below).
+
+## Local Lambda emulation — `tools/local_invoke.py` (built 2026-06-14)
+
+Runs the real `agent.lambda_handler` locally (no deploy) against moto or real AWS,
+with mock or real LLMs. Default `python3 -m tools.local_invoke` is a free ~1s smoke
+of the full read→graph→write→trace path — reproduces the write crash without a
+deploy. `--aws --real-llm` runs the exact handler against real data + Anthropic
+locally (the fast debug loop, ~190s, costs LLM $ but no deploy).
+
+- [x] Built + lint-clean; default mode verified (writes a `v2.0` row with a float
+      `probability` via `_ddb_safe`, plus a trace). Surfaced a real test gap: the
+      mocked primary node needs BOTH `bind_tools` and `with_structured_output`
+      stubbed (test_graph_integration never hit the write path).
+- [ ] Run `python3 -m tools.local_invoke --aws --real-llm --match round-15-warriors-v-sharks --round 15`
+      as the real verification (replaces the deployed-Lambda smoke invoke). OR
+      invoke the deployed Lambda directly. Then check `tools.inspector` / dashboard.
+- [ ] Once a single real run is clean, run the full round via the orchestrator.
 
 ## Notes
 

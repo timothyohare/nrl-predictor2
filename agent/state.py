@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from typing import Literal, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Pydantic output models ───────────────────────────────────────────────────
@@ -57,6 +58,27 @@ class ExtendedPrediction(BaseModel):
     margin_bracket: Literal["1-5", "6-12", "13-20", "21+"]
     key_player_to_watch: str
     upset_probability: float = Field(ge=0.0, le=1.0)
+
+    @field_validator("first_try_scorer", mode="before")
+    @classmethod
+    def _coerce_first_try(cls, v):
+        """Tolerate the LLM emitting the candidate list directly.
+
+        Haiku's structured output for this nested field is unreliable: it often
+        returns ``first_try_scorer`` as a JSON string or a bare list of candidate
+        dicts instead of a ``{"candidates": [...]}`` object. Normalise those
+        shapes (and clamp to the top 3) rather than crash the whole pipeline.
+        """
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except (ValueError, TypeError):
+                return v
+        if isinstance(v, list):
+            v = {"candidates": v}
+        if isinstance(v, dict) and isinstance(v.get("candidates"), list):
+            return {**v, "candidates": v["candidates"][:3]}
+        return v
 
 
 class TraceEntry(TypedDict):

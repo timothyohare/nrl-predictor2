@@ -104,6 +104,35 @@ A separate script that invokes the deployed `nrl-predictor-v2-agent` Lambda for
 one match and asserts the row + trace land. Real money, real LLM — belongs in a
 manual/CI smoke check, **not** the Stop-hook path.
 
+## Local Lambda emulation — `tools/local_invoke.py` ✅ BUILT
+
+Runs the **real** `agent.lambda_handler` locally — no CDK deploy, no Lambda — so
+the full read → graph → `write_prediction` → `write_trace` path is exercised on
+your laptop. Two axes:
+
+| | LLM = mock (default) | LLM = real (`--real-llm`) |
+|---|---|---|
+| **moto** (default) | free, deterministic smoke of the whole handler incl. serialization | real Anthropic vs seeded moto tables |
+| **`--aws`** | real DynamoDB, mock graph | the debug loop: the exact deployed handler, real data + LLM, locally |
+
+```bash
+python3 -m tools.local_invoke                    # moto + mock — free, ~1s
+python3 -m tools.local_invoke --aws --real-llm \
+    --match round-15-warriors-v-sharks --round 15   # full fidelity, no deploy
+```
+
+Why it exists: the float→Decimal **write crash** and the extended-node **schema
+crash** each cost a 56s deploy + a billed ~190s live invoke to discover. The
+default (moto + mock) mode reproduces the write path in ~1s; `--aws --real-llm`
+reproduces model-output quirks in one local run instead of a deploy cycle. It
+also flushed out a real test gap — the mocked primary node needs **both**
+`bind_tools` and `with_structured_output` stubbed, which `test_graph_integration`
+never exercised because it doesn't call the write path.
+
+This supersedes Option B for most needs (no HTTP server / dynamodb-local to
+maintain). The default mode is a good candidate for a future `gate-verify`
+`acceptance` hook.
+
 ## Notable findings while onboarding
 
 These aren't harness work, but surfaced during it and are worth flagging:
