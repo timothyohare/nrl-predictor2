@@ -12,7 +12,6 @@ from agent.state import (
     FinalPrediction,
     FirstTryPrediction,
     FirstTryScorerCandidate,
-    PrimaryPrediction,
     RouterOutput,
 )
 from scrapers.shared.constants import HAIKU_MODEL, SONNET_MODEL

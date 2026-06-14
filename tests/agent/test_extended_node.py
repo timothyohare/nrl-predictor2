@@ -1,7 +1,6 @@
 """Tests for the Extended Predictor node."""
 from unittest.mock import MagicMock
 
-import pytest
 
 from agent.nodes.extended import make_extended_node
 from agent.state import (

@@ -5,7 +5,6 @@ from aws_cdk import (
     aws_events_targets as targets,
     aws_apigatewayv2 as apigwv2,
     aws_apigatewayv2_integrations as integrations,
-    aws_iam as iam,
     aws_lambda as _lambda,
     aws_s3 as s3,
     aws_secretsmanager as secretsmanager,

@@ -24,6 +24,12 @@ dev = [
     "moto[dynamodb,s3,secretsmanager]>=5.0",
     "aws-cdk-lib>=2.140",
     "constructs>=10.3",
+    "ruff>=0.15",
+]
+viz = [
+    # Plan B dashboard (tools/dashboard.py). Not needed for the agent or tests.
+    "streamlit>=1.40",
+    "pandas>=2.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -33,3 +39,7 @@ include = ["scrapers*", "agent*", "scoring*", "api*", "orchestrator*", "retrospe
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
+
+[tool.ruff]
+# cdk.out is a CDK build artifact, not source.
+extend-exclude = ["infra/cdk.out"]

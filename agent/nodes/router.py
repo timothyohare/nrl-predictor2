@@ -4,7 +4,7 @@ import json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from agent.state import MatchPredictionState, RouterOutput
-from scrapers.shared.constants import HAIKU_MODEL, SONNET_MODEL
+from scrapers.shared.constants import HAIKU_MODEL
 
 _SYSTEM = """\
 You are an NRL match classifier. Given a match context, classify the match difficulty

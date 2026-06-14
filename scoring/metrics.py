@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 import logging
 
-import boto3
 
 from scoring.odds_accuracy import score_market
 

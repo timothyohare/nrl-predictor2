@@ -1,7 +1,6 @@
 """Tests for the Synthesis Judge node."""
 from unittest.mock import MagicMock
 
-import pytest
 
 from agent.nodes.judge import make_judge_node
 from agent.state import Challenge, FinalPrediction, PrimaryPrediction

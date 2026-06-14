@@ -1,6 +1,6 @@
 """Tests for the Primary Predictor node."""
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage

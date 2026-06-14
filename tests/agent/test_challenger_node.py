@@ -1,7 +1,6 @@
 """Tests for the Challenger node."""
 from unittest.mock import MagicMock
 
-import pytest
 
 from agent.nodes.challenger import make_challenger_node
 from agent.state import Challenge, PrimaryPrediction

@@ -1,5 +1,4 @@
 """AWS Lambda entry point for the v2 multi-agent NRL predictor."""
-import json
 import logging
 import os
 from datetime import datetime, timezone

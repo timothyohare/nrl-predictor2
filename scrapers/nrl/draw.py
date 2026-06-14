@@ -3,7 +3,6 @@ import os
 from datetime import datetime, timezone
 
 import boto3
-import requests
 
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import Match

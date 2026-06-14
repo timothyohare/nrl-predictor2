@@ -1,7 +1,6 @@
 """Tests for the Router node."""
 from unittest.mock import MagicMock
 
-import pytest
 
 from agent.nodes.router import make_router_node
 from agent.state import RouterOutput
