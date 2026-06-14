@@ -2,6 +2,7 @@
 import logging
 import os
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import boto3
 
@@ -13,6 +14,22 @@ logger.setLevel(logging.INFO)
 
 BUDGET_THRESHOLD_USD = float(os.environ.get("BUDGET_THRESHOLD_USD", "50.0"))
 PROMPT_VERSION = "v2.0"
+
+
+def _ddb_safe(obj):
+    """Recursively convert floats to Decimal so boto3 can serialise the item.
+
+    The DynamoDB resource client rejects Python floats (e.g. nested
+    ``first_try_candidates[*].probability``); they must be Decimal. Using
+    ``Decimal(str(x))`` avoids binary float-precision noise.
+    """
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    if isinstance(obj, list):
+        return [_ddb_safe(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _ddb_safe(v) for k, v in obj.items()}
+    return obj
 
 
 def get_api_key() -> str:
@@ -103,7 +120,7 @@ def write_prediction(match_id: str, round_number: int, season: int, state: dict,
             "upset_probability": str(extended.upset_probability),
         })
 
-    table.put_item(Item=item)
+    table.put_item(Item=_ddb_safe(item))
     logger.info("Wrote prediction for %s: %s by %d (%s)", match_id, final.predicted_winner, final.predicted_margin, final.confidence)
 
 
@@ -114,13 +131,13 @@ def write_trace(match_id: str, generated_at: str, state: dict) -> None:
         return
     ddb = boto3.resource("dynamodb")
     table = ddb.Table(traces_table_name)
-    table.put_item(Item={
+    table.put_item(Item=_ddb_safe({
         "matchId": match_id,
         "generatedAt": generated_at,
         "trace_entries": state.get("agent_trace", []),
         "difficulty": state.get("difficulty"),
         "primary_model": state.get("primary_model"),
-    })
+    }))
 
 
 def lambda_handler(event: dict, context) -> dict:

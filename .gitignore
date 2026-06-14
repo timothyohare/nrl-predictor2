@@ -21,6 +21,9 @@ infra/cdk.out/
 
 # AWS
 .aws-sam/
+# Lambda invoke output (aws lambda invoke ... response.json)
+response.json
+infra/response.json
 
 # Frontend
 frontend/node_modules/
