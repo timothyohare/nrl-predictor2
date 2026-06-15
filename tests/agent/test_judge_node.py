@@ -78,3 +78,33 @@ def test_judge_includes_rationale():
     node = make_judge_node(llm=_make_llm())
     result = node(_state())
     assert len(result["final_prediction"].judge_rationale) > 10
+
+
+def _failing_llm():
+    """LLM whose structured output raises (simulates max_tokens truncation crash)."""
+    llm = MagicMock()
+    llm.with_structured_output.return_value.invoke.side_effect = ValueError(
+        "Output parser received a max_tokens stop reason."
+    )
+    return llm
+
+
+def test_judge_falls_back_to_primary_on_parse_failure():
+    node = make_judge_node(llm=_failing_llm())
+    result = node(_state(primary=_primary(winner="Panthers", margin=14, confidence="HIGH"),
+                         challenge=_challenge(strength="WEAK")))
+    pred = result["final_prediction"]
+    assert isinstance(pred, FinalPrediction)
+    assert pred.accepted_primary is True
+    assert pred.predicted_winner == "Panthers"
+    assert pred.predicted_margin == 14
+    assert pred.confidence == "HIGH"  # WEAK challenge → no softening
+    assert len(pred.key_factors) >= 2
+
+
+def test_judge_fallback_softens_confidence_on_strong_challenge():
+    node = make_judge_node(llm=_failing_llm())
+    result = node(_state(primary=_primary(confidence="HIGH"),
+                         challenge=_challenge(strength="STRONG")))
+    # HIGH softened one tier for a STRONG challenge
+    assert result["final_prediction"].confidence == "MEDIUM"

@@ -16,8 +16,41 @@ inspector/dashboard now show 1 v2.0 row + 1 trace.
       on the draw slug. Regression test `tests/scrapers/test_team_sheet_id.py`. Gate: 41.
       **Requires redeploy + a fresh orchestrator scrape** to take effect on live data
       (existing round-15 sheets are numeric-keyed and now >24h stale anyway).
-- [ ] Redeploy (orchestrator changed) and run a full round via the orchestrator —
-      confirms fan-out + that `get_team_sheet`/`get_spine_synergy` now resolve in traces.
+- [~] **Slug fix verified at write/key/test level, NOT end-to-end (2026-06-15).**
+      - Regression test green (3 tests). Deployed code keys by slug: the 06-14 11:13
+        round-15 write produced a real slug-keyed full sheet (`round-15-warriors-v-sharks`,
+        Warriors/Sharks). Raw `get_item` with the agent's exact key {teamId: slug, round}
+        returns it — read/write keys agree.
+      - **But no agent run has EVER consumed a real team sheet via `get_team_sheet`.**
+        Audit of every trace: pre-deploy 10:50 → "Error: No team sheet found" (slug item
+        not written yet); post-deploy 11:17 → agent never called `get_team_sheet`; the
+        slug-keyed round-15 sheet then went >24h stale before any agent read it.
+        NOTE: trace `error` field is `None` even on tool failure — failures are serialized
+        into the `output` string as `"Error: ..."`. Classify by output, not the error field.
+- [ ] **Real end-to-end slug verification is blocked by data, not the fix.** Orchestrator
+      run 2026-06-15 (round 16) scraped fine but every match logged "Both player lists are
+      empty" — NRL hasn't named round-16 line-ups yet, so NO full slug-keyed sheet was
+      written (only empty `#home`/`#away` stubs from another writer). Every agent's
+      `get_team_sheet` returned "Error: No team sheet found" → ran blind. **Re-run a single
+      agent once round-16 line-ups publish (~Tue, 24-48h pre-kickoff) and confirm
+      `get_team_sheet` returns real data in the trace.**
+- [x] **OPERATIONAL: orchestrator triple-fired** on 2026-06-15 (25 agent starts, 17
+      duplicate round-16 predictions, ~3× LLM spend) — synchronous `aws lambda invoke`
+      overruns the CLI's 60s read timeout → botocore retries re-run the whole handler.
+      **Fixed 2026-06-15**: `_acquire_round_lock()` in `orchestrator/lambda_handler.py` — a
+      conditional-write lock item in the teams table keyed on (season, round) so only the
+      first run within `ORCHESTRATOR_LOCK_WINDOW_SECONDS` (default 900) proceeds; duplicates
+      return `{"skipped": "locked"}` without fanning out. `force: true` overrides. Tests in
+      `tests/orchestrator/test_idempotency.py` (4). **Needs redeploy.** Still prefer
+      `--invocation-type Event` for manual CLI invokes regardless.
+- [x] **REGRESSION: `max_tokens` ValidationError on `FinalPrediction` (Judge node)** — 4
+      occurrences in the 2026-06-15 round-16 run. Same class as the prior Challenger
+      max_tokens crash. **Fixed 2026-06-15** in `agent/nodes/judge.py`: bumped `max_tokens`
+      1536→3072 (FinalPrediction has two prose fields) AND wrapped the structured call in a
+      try/except that falls back to the primary prediction (WEAK-challenge default, softens
+      confidence one tier for MODERATE/STRONG) so a parse failure can't sink the pipeline.
+      Tests in `tests/agent/test_judge_node.py` (6 total). Gate green: ruff + 43 passed.
+      **Needs redeploy** for the fix to take effect live.
 - [ ] `get_weather` also errored (no forecast for venue/date) — separate, lower priority.
 - [ ] Once scheduled runs are clean, delete the `project_v2_no_live_output` memory.
 
