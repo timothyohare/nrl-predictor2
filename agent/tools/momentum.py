@@ -1,3 +1,6 @@
+from common.teams import to_slug
+
+
 def calculate_momentum(
     results: list[dict],
     team: str,
@@ -24,10 +27,11 @@ def calculate_momentum(
         w = decay_factor ** i
         weights.append(w)
 
-        is_home = r.get("homeTeam", "").lower() == team.lower()
+        team_slug = to_slug(team)
+        is_home = to_slug(r.get("homeTeam", "")) == team_slug
         pf = int(r.get("homeScore", 0) if is_home else r.get("awayScore", 0))
         pa = int(r.get("awayScore", 0) if is_home else r.get("homeScore", 0))
-        won = r.get("winner", "").lower() == team.lower()
+        won = to_slug(r.get("winner", "")) == team_slug
 
         wins.append(1.0 if won else 0.0)
         points_for.append(pf)

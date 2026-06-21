@@ -100,7 +100,7 @@ def test_write_prediction_persists_float_candidates(aws_env):
 
     assert item["matchId"] == "round-15-panthers-v-broncos"
     assert item["prompt_version"] == "v2.0"
-    assert item["predicted_winner"] == "Panthers"
+    assert item["predicted_winner"] == "panthers"  # canonical slug
     assert item["challenge_strength"] == "MODERATE"
 
     candidates = item["first_try_candidates"]
@@ -136,4 +136,4 @@ def test_write_prediction_without_extended(aws_env):
 
     item = aws_env.Table(PREDICTIONS_TABLE).scan()["Items"][0]
     assert "first_try_candidates" not in item
-    assert item["predicted_winner"] == "Panthers"
+    assert item["predicted_winner"] == "panthers"  # canonical slug

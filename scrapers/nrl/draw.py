@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 import boto3
 
+from common.match_id import match_id_from_url  # noqa: F401  re-exported for back-compat
+from common.teams import to_slug
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import Match
 from scrapers.shared.s3_cache import save_raw
@@ -14,18 +16,6 @@ _DRAW_URL = "https://www.nrl.com/draw/data?competition=111&season={season}&round
 def fetch_draw(season: int, round_number: int) -> dict:
     _, body = get_with_retry(_DRAW_URL.format(season=season, round=round_number))
     return json.loads(body)
-
-
-def match_id_from_url(match_centre_url: str) -> str:
-    """Canonical match_id from a match-centre URL — the slug everything keys on.
-
-    URL format: /draw/nrl-premiership/{year}/round-{N}/{home}-v-{away}/
-    Last two segments give e.g. "round-11-panthers-v-broncos". This is the single
-    source of truth for the match_id: the draw, the agent fan-out, the team-sheet
-    storage key, and the agent's team-sheet lookups must all agree on it.
-    """
-    parts = match_centre_url.rstrip("/").rsplit("/", 2)
-    return f"{parts[-2]}-{parts[-1]}" if len(parts) >= 3 else parts[-1]
 
 
 def parse_draw(data: dict) -> list[Match]:
@@ -47,8 +37,8 @@ def parse_draw(data: dict) -> list[Match]:
             round_number = fixture.get("roundNumber", 0)
         matches.append(Match(
             match_id=match_id,
-            home_team=fixture["homeTeam"]["nickName"],
-            away_team=fixture["awayTeam"]["nickName"],
+            home_team=to_slug(fixture["homeTeam"]["nickName"]),
+            away_team=to_slug(fixture["awayTeam"]["nickName"]),
             venue=venue,
             round_number=round_number,
             kick_off=kick_off,

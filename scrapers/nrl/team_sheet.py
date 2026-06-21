@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 import boto3
 from bs4 import BeautifulSoup
 
-from scrapers.nrl.draw import match_id_from_url
+from common.match_id import match_id_from_url
+from common.teams import to_slug
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import Player, TeamSheet, TeamSide
 from scrapers.shared.s3_cache import save_raw
@@ -99,8 +100,8 @@ def lambda_handler(event: dict, context) -> None:
         "round": str(ts.round),
         "matchState": ts.match_state,
         "kickOff": ts.kick_off or "",
-        "homeTeam": ts.home_team.nick_name,
-        "awayTeam": ts.away_team.nick_name,
+        "homeTeam": to_slug(ts.home_team.nick_name),
+        "awayTeam": to_slug(ts.away_team.nick_name),
         "homePlayers": [p.__dict__ for p in ts.home_team.players],
         "awayPlayers": [p.__dict__ for p in ts.away_team.players],
         "homeScore": ts.home_team.score,

@@ -4,6 +4,8 @@ import os
 import boto3
 from langchain_core.tools import tool
 
+from common.teams import to_slug
+
 _SPINE_NUMBERS = {1, 6, 7, 9}
 _ESTABLISHED_THRESHOLD = 5
 
@@ -18,21 +20,25 @@ def _extract_spine(players: list[dict]) -> dict[int, str]:
 
 
 def _analyse_team(team: str, current_spine: dict[int, str], current_round: int, teams_table, results_table) -> dict:
+    slug = to_slug(team)
     response = teams_table.scan(
-        FilterExpression="(homeTeam = :t OR awayTeam = :t) AND attribute_exists(homePlayers)",
-        ExpressionAttributeValues={":t": team},
+        FilterExpression="attribute_exists(homePlayers)",
     )
-    historical = [i for i in response.get("Items", []) if _safe_round(i) < current_round]
+    historical = [
+        i for i in response.get("Items", [])
+        if _safe_round(i) < current_round
+        and slug in (to_slug(i.get("homeTeam", "")), to_slug(i.get("awayTeam", "")))
+    ]
     full_spine_games = full_spine_wins = halves_games = halves_wins = 0
     current_halves = {k: v for k, v in current_spine.items() if k in (6, 7)}
     for sheet in historical:
-        players = sheet.get("homePlayers", []) if sheet.get("homeTeam") == team else sheet.get("awayPlayers", [])
+        players = sheet.get("homePlayers", []) if to_slug(sheet.get("homeTeam", "")) == slug else sheet.get("awayPlayers", [])
         hist_spine = _extract_spine(players)
         full_match = all(hist_spine.get(n) == current_spine.get(n) for n in _SPINE_NUMBERS)
         halves_match = all(hist_spine.get(n) == current_halves.get(n) for n in (6, 7))
         match_id = sheet.get("teamId", "")
         res = results_table.query(KeyConditionExpression="matchId = :m", ExpressionAttributeValues={":m": match_id}, Limit=1).get("Items", [])
-        won = res[0].get("winner") == team if res else False
+        won = to_slug(res[0].get("winner", "")) == slug if res else False
         if full_match:
             full_spine_games += 1
             if won:

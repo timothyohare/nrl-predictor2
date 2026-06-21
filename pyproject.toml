@@ -34,7 +34,7 @@ viz = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scrapers*", "agent*", "scoring*", "api*", "orchestrator*", "retrospective*"]
+include = ["common*", "scrapers*", "agent*", "scoring*", "api*", "orchestrator*", "retrospective*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

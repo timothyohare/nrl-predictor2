@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import boto3
 
+from common.teams import to_slug
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import LadderPosition
 from scrapers.shared.s3_cache import save_raw
@@ -23,7 +24,7 @@ def parse_ladder(data: dict) -> list[LadderPosition]:
         stats = p.get("stats", {})
         positions.append(LadderPosition(
             position=p["position"],
-            team_name=p["teamNickname"],
+            team_name=to_slug(p["teamNickname"]),
             played=stats.get("played", 0),
             wins=stats.get("wins", 0),
             losses=stats.get("losses", 0),

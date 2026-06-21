@@ -1,0 +1,19 @@
+{
+  "broncos":      {"nickname": "Broncos",      "full_name": "Brisbane Broncos",              "abbrev": "BRI", "aliases": ["brisbane"]},
+  "bulldogs":     {"nickname": "Bulldogs",     "full_name": "Canterbury-Bankstown Bulldogs", "abbrev": "CBY", "aliases": ["canterbury", "canterbury-bankstown", "bankstown"]},
+  "cowboys":      {"nickname": "Cowboys",      "full_name": "North Queensland Cowboys",       "abbrev": "NQL", "aliases": ["north queensland"]},
+  "dolphins":     {"nickname": "Dolphins",     "full_name": "Dolphins",                       "abbrev": "DOL", "aliases": ["redcliffe", "the dolphins"]},
+  "dragons":      {"nickname": "Dragons",      "full_name": "St George Illawarra Dragons",    "abbrev": "SGI", "aliases": ["st george", "st george illawarra", "saints", "illawarra"]},
+  "eels":         {"nickname": "Eels",         "full_name": "Parramatta Eels",                "abbrev": "PAR", "aliases": ["parramatta"]},
+  "knights":      {"nickname": "Knights",      "full_name": "Newcastle Knights",              "abbrev": "NEW", "aliases": ["newcastle"]},
+  "panthers":     {"nickname": "Panthers",     "full_name": "Penrith Panthers",               "abbrev": "PEN", "aliases": ["penrith"]},
+  "rabbitohs":    {"nickname": "Rabbitohs",    "full_name": "South Sydney Rabbitohs",         "abbrev": "SOU", "aliases": ["south sydney", "souths", "bunnies"]},
+  "raiders":      {"nickname": "Raiders",      "full_name": "Canberra Raiders",               "abbrev": "CAN", "aliases": ["canberra"]},
+  "roosters":     {"nickname": "Roosters",     "full_name": "Sydney Roosters",                "abbrev": "SYD", "aliases": ["sydney city", "easts", "eastern suburbs"]},
+  "sea-eagles":   {"nickname": "Sea Eagles",   "full_name": "Manly-Warringah Sea Eagles",     "abbrev": "MAN", "aliases": ["manly", "manly-warringah", "manly warringah"]},
+  "sharks":       {"nickname": "Sharks",       "full_name": "Cronulla-Sutherland Sharks",     "abbrev": "CRO", "aliases": ["cronulla", "cronulla-sutherland", "sutherland"]},
+  "storm":        {"nickname": "Storm",        "full_name": "Melbourne Storm",                "abbrev": "MEL", "aliases": ["melbourne"]},
+  "titans":       {"nickname": "Titans",       "full_name": "Gold Coast Titans",              "abbrev": "GLD", "aliases": ["gold coast"]},
+  "warriors":     {"nickname": "Warriors",     "full_name": "New Zealand Warriors",           "abbrev": "NZL", "aliases": ["new zealand", "nz", "auckland"]},
+  "wests-tigers": {"nickname": "Wests Tigers", "full_name": "Wests Tigers",                   "abbrev": "WST", "aliases": ["wests", "tigers", "west tigers"]}
+}

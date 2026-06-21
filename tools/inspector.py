@@ -36,6 +36,9 @@ from decimal import Decimal
 
 import boto3
 
+from common.match_id import is_canonical
+from common.teams import display_name, to_slug
+
 REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
 V2_PROMPT_VERSION = "v2.0"
 _ROUND_PREFIX = re.compile(r"^round-\d+-", re.IGNORECASE)
@@ -92,14 +95,19 @@ def latest_per_match(preds: list[dict]) -> dict[str, dict]:
     return best
 
 
-def results_by_slug(results: list[dict]) -> dict[str, dict]:
-    """Index actual results by normalised match slug, keeping the latest."""
+def results_by_match_id(results: list[dict]) -> dict[str, dict]:
+    """Index actual results by their full round-qualified matchId, keeping the latest.
+
+    Round-AWARE on purpose: round-less legacy rows (`broncos-v-roosters`) are ignored so an
+    unplayed round can't be joined to an earlier meeting (the round-17 bogus-results bug)."""
     best: dict[str, dict] = {}
     for r in results:
-        slug = norm_match(r.get("matchId", ""))
+        mid = r.get("matchId", "")
+        if not is_canonical(mid):
+            continue
         ts = r.get("scoredAt", "")
-        if slug and (slug not in best or ts > best[slug].get("scoredAt", "")):
-            best[slug] = r
+        if mid not in best or ts > best[mid].get("scoredAt", ""):
+            best[mid] = r
     return best
 
 
@@ -117,19 +125,19 @@ def all_rounds(preds: list[dict]) -> list[int]:
 def board_rows(preds: list[dict], results: list[dict], round_no: int) -> list[dict]:
     """Rows for one round: latest prediction per match joined to its result."""
     latest = latest_per_match([p for p in preds if round_of(p) == round_no])
-    res_idx = results_by_slug(results)
+    res_idx = results_by_match_id(results)
     rows = []
     for mid, p in sorted(latest.items()):
         slug = norm_match(mid)
-        res = res_idx.get(slug)
-        winner = p.get("predicted_winner", "?")
+        res = res_idx.get(mid)  # round-aware: join on the full matchId, not the bare slug
+        winner = display_name(to_slug(p.get("predicted_winner", "?")))
         margin = num(p.get("predicted_margin"))
-        actual_winner = res.get("winner") if res else None
+        actual_winner = display_name(to_slug(res.get("winner"))) if res else None
         actual_margin = num(res.get("margin")) if res else None
         correct = None
         margin_err = None
         if actual_winner:
-            correct = winner.lower() == str(actual_winner).lower()
+            correct = to_slug(p.get("predicted_winner", "")) == to_slug(res.get("winner"))
             if margin is not None and actual_margin is not None:
                 margin_err = abs(margin - actual_margin)
         rows.append({

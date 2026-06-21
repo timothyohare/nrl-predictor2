@@ -78,6 +78,10 @@ confirm v2/traces start landing.
 > ```bash
 > pip install -e ".[viz]" --break-system-packages   # streamlit + pandas
 > AWS_REGION=ap-southeast-2 streamlit run tools/dashboard.py
+> # If `streamlit` isn't on PATH (--break-system-packages puts the shim in
+> # ~/.local/bin), run the module form instead — no PATH change needed:
+> AWS_REGION=ap-southeast-2 python3 -m streamlit run tools/dashboard.py
+> # Serves at http://localhost:8501
 > ```
 >
 > Pages built: **Run monitor** (freshness + live-round progress, optional

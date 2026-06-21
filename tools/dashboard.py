@@ -5,8 +5,11 @@ Plan B from docs/visualization-plans.md. A Streamlit app over the same DynamoDB
 tables the CLI reads, reusing tools/inspector.py as the data layer.
 
 Run:
-    streamlit run tools/dashboard.py
-    # or, with a region:  AWS_REGION=ap-southeast-2 streamlit run tools/dashboard.py
+    AWS_REGION=ap-southeast-2 streamlit run tools/dashboard.py
+    # If `streamlit` isn't on PATH (e.g. installed with --break-system-packages, where
+    # the shim lands in ~/.local/bin), use the module form — no PATH change needed:
+    AWS_REGION=ap-southeast-2 python3 -m streamlit run tools/dashboard.py
+    # Serves at http://localhost:8501
 
 Pages
 -----

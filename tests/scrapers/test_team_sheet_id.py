@@ -78,4 +78,4 @@ def test_team_sheet_lambda_stores_under_slug(teams_table, monkeypatch):
     assert len(items) == 1
     assert items[0]["teamId"] == SLUG
     assert items[0]["teamId"] != NUMERIC
-    assert items[0]["homeTeam"] == "Warriors"
+    assert items[0]["homeTeam"] == "warriors"  # stored as canonical slug

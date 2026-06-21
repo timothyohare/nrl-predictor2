@@ -8,6 +8,7 @@ import boto3
 
 from agent.budget import BudgetExceeded, check_budget
 from agent.graph import get_app
+from common.teams import to_slug
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -51,13 +52,16 @@ def load_match_context(match_id: str, round_number: int, season: int) -> dict:
     response = teams_table.get_item(Key={"teamId": match_id, "round": str(round_number)})
     sheet = response.get("Item", {})
 
-    # Load ladder for quick position lookup
+    # Load ladder for quick position lookup (key positions on the canonical slug)
     ladder_resp = teams_table.get_item(Key={"teamId": f"ladder#{season}", "round": "current"})
     ladder_item = ladder_resp.get("Item", {})
-    positions = {p["team"]: int(p["position"]) for p in ladder_item.get("positions", [])}
+    positions = {
+        to_slug(p.get("team") or p.get("team_name", "")): int(p["position"])
+        for p in ladder_item.get("positions", [])
+    }
 
-    home_team = sheet.get("homeTeam", "")
-    away_team = sheet.get("awayTeam", "")
+    home_team = to_slug(sheet.get("homeTeam", ""))
+    away_team = to_slug(sheet.get("awayTeam", ""))
 
     return {
         "match_id": match_id,
@@ -78,6 +82,27 @@ def load_match_context(match_id: str, round_number: int, season: int) -> dict:
     }
 
 
+def assess_data_completeness(match_context: dict) -> list[str]:
+    """Return a list of missing essential inputs; empty means OK to predict.
+
+    The agent produces near-random output when the structured data layer is empty.
+    In round 17 every match ran with no team sheet, so ``recent_form``/``head_to_head``
+    found nothing (the agent fell back to full team names off web_search, which never
+    match the short names stored in the results table) and the agent predicted blind.
+    Gate on the inputs the prediction actually depends on rather than burning five LLM
+    calls to produce a guess off an empty context.
+    """
+    missing: list[str] = []
+    if not match_context.get("home_team") or not match_context.get("away_team"):
+        missing.append("team names")
+    sheets = match_context.get("team_sheets", {})
+    if not sheets.get("home"):
+        missing.append("home team sheet")
+    if not sheets.get("away"):
+        missing.append("away team sheet")
+    return missing
+
+
 def write_prediction(match_id: str, round_number: int, season: int, state: dict, generation: int = 1) -> None:
     """Write the final prediction + extended fields to DynamoDB."""
     ddb = boto3.resource("dynamodb")
@@ -96,8 +121,8 @@ def write_prediction(match_id: str, round_number: int, season: int, state: dict,
         "generation": generation,
         "prompt_version": PROMPT_VERSION,
 
-        # Core prediction (from judge)
-        "predicted_winner": final.predicted_winner,
+        # Core prediction (from judge) — team identity stored as canonical slug
+        "predicted_winner": to_slug(final.predicted_winner),
         "predicted_margin": final.predicted_margin,
         "confidence": final.confidence,
         "key_factors": final.key_factors,
@@ -113,8 +138,13 @@ def write_prediction(match_id: str, round_number: int, season: int, state: dict,
     }
 
     if extended:
+        candidates = []
+        for c in extended.first_try_scorer.candidates:
+            cd = c.model_dump()
+            cd["team"] = to_slug(cd.get("team", ""))
+            candidates.append(cd)
         item.update({
-            "first_try_candidates": [c.model_dump() for c in extended.first_try_scorer.candidates],
+            "first_try_candidates": candidates,
             "margin_bracket": extended.margin_bracket,
             "key_player_to_watch": extended.key_player_to_watch,
             "upset_probability": str(extended.upset_probability),
@@ -155,6 +185,14 @@ def lambda_handler(event: dict, context) -> dict:
         return {"status": "BUDGET_EXCEEDED", "matchId": match_id}
 
     match_context = load_match_context(match_id, round_number, season)
+
+    missing = assess_data_completeness(match_context)
+    if missing:
+        logger.warning(
+            "Insufficient data for %s round %d: missing %s — skipping prediction",
+            match_id, round_number, ", ".join(missing),
+        )
+        return {"status": "INSUFFICIENT_DATA", "matchId": match_id, "missing": missing}
 
     initial_state = {
         "match_id": match_id,

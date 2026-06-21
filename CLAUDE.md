@@ -123,6 +123,22 @@ v2 runs alongside v1 for 2-3 rounds:
    so v2 predictions don't affect the live site until you switch the API Lambda
 4. Compare accuracy via the existing scoring + metrics pipeline
 
+## Team & match identity (canonical representation)
+
+The single source of truth is `common/` (shipped to every Lambda via the whole-repo asset):
+
+- **Team identity** — a team is *always* the lowercase slug (`sea-eagles`) internally. The NRL
+  `nickName`, full names, odds-API names and LLM free text are inbound forms that **must** be
+  `common.teams.to_slug()`'d at the boundary before they touch a table, tool arg, or comparison.
+  Display strings come from `common.teams.display()`. Data lives in `common/team_registry.json`.
+  *Invariant: no raw team name is written to a table or passed to a tool — slug at the boundary.*
+- **Match identity** — `matchId` is the round-qualified slug `round-<N>-<home>-v-<away>` from
+  `common.match_id` (`match_id_from_url` / `match_id`). **Every join is round-aware** (by matchId or
+  roundNumber); never join on a bare team-pair (that produced bogus cross-round results).
+
+Plans: `docs/team-identity-plan.md`, `docs/matchid-identity-plan.md`. One-off DB migration:
+`scripts/migrate_identity.py {teams,matchids}` (dry-run by default; `--apply` to write).
+
 ## Important constraints
 
 Inherits all v1 constraints (see v1/CLAUDE.md). Additional:

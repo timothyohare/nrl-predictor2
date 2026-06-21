@@ -10,6 +10,14 @@ and verified: a real run via `tools.local_invoke --aws --real-llm` wrote the fir
 inspector/dashboard now show 1 v2.0 row + 1 trace.
 
 ### Follow-ups (not blocking "it runs")
+
+> **2026-06-15: slug + Judge + idempotency fixes committed (`2188625`), pushed, and
+> deployed** (both v2 Lambdas redeployed 10:27 UTC). Live verification of all three is
+> deferred to the next orchestrator round that has published line-ups (NRL names teams
+> ~Tue). One such run confirms: `get_team_sheet` returns real data (slug), no Judge
+> `max_tokens` crash, and idempotency (`{"skipped":"locked"}` on the retry). After it runs,
+> inspect traces — **classify tool success by the `output` string, not the `error` field.**
+
 - [x] **Agent ran blind on team sheets** (slug vs numeric matchId). Fixed: single
       source of truth `match_id_from_url()` in `scrapers/nrl/draw.py`; both writers
       (orchestrator inline + `scrapers/nrl/team_sheet.py` lambda) now key team sheets
@@ -41,7 +49,7 @@ inspector/dashboard now show 1 v2.0 row + 1 trace.
       conditional-write lock item in the teams table keyed on (season, round) so only the
       first run within `ORCHESTRATOR_LOCK_WINDOW_SECONDS` (default 900) proceeds; duplicates
       return `{"skipped": "locked"}` without fanning out. `force: true` overrides. Tests in
-      `tests/orchestrator/test_idempotency.py` (4). **Needs redeploy.** Still prefer
+      `tests/orchestrator/test_idempotency.py` (4). **Deployed 2026-06-15.** Still prefer
       `--invocation-type Event` for manual CLI invokes regardless.
 - [x] **REGRESSION: `max_tokens` ValidationError on `FinalPrediction` (Judge node)** — 4
       occurrences in the 2026-06-15 round-16 run. Same class as the prior Challenger
@@ -50,7 +58,7 @@ inspector/dashboard now show 1 v2.0 row + 1 trace.
       try/except that falls back to the primary prediction (WEAK-challenge default, softens
       confidence one tier for MODERATE/STRONG) so a parse failure can't sink the pipeline.
       Tests in `tests/agent/test_judge_node.py` (6 total). Gate green: ruff + 43 passed.
-      **Needs redeploy** for the fix to take effect live.
+      **Deployed 2026-06-15.**
 - [ ] `get_weather` also errored (no forecast for venue/date) — separate, lower priority.
 - [ ] Once scheduled runs are clean, delete the `project_v2_no_live_output` memory.
 

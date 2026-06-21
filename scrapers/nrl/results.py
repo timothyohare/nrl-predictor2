@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 import boto3
 
+from common.match_id import match_id_from_url
+from common.teams import to_slug
 from scrapers.shared.http_client import get_with_retry
 from scrapers.shared.models import MatchResult
 from scrapers.shared.s3_cache import save_raw
@@ -27,18 +29,14 @@ def parse_results(data: dict) -> list[MatchResult]:
         away_score = away.get("score", 0) or 0
         winner = home["nickName"] if home_score >= away_score else away["nickName"]
         url = fixture.get("matchCentreUrl", "")
-        if url:
-            parts = url.rstrip("/").rsplit("/", 2)
-            match_id = f"{parts[-2]}-{parts[-1]}" if len(parts) >= 3 else parts[-1]
-        else:
-            match_id = ""
+        match_id = match_id_from_url(url) if url else ""
         results.append(MatchResult(
             match_id=match_id,
-            home_team=home["nickName"],
-            away_team=away["nickName"],
+            home_team=to_slug(home["nickName"]),
+            away_team=to_slug(away["nickName"]),
             home_score=home_score,
             away_score=away_score,
-            winner=winner,
+            winner=to_slug(winner),
             margin=abs(home_score - away_score),
             match_state="FullTime",
         ))

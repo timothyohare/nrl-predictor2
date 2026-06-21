@@ -4,6 +4,8 @@ import os
 import boto3
 from langchain_core.tools import tool
 
+from common.teams import to_slug
+
 COACH_MAP = {
     "Panthers": {"coach": "Ivan Cleary", "from": "2019-01-01"},
     "Storm": {"coach": "Craig Bellamy", "from": "2003-01-01"},
@@ -26,8 +28,9 @@ COACH_MAP = {
 
 
 def _get_coach(team: str) -> dict | None:
+    slug = to_slug(team)
     for t, info in COACH_MAP.items():
-        if t.lower() == team.lower():
+        if to_slug(t) == slug:
             return {"team": t, **info}
     return None
 

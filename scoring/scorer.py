@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from common.teams import to_slug
+
 _CONFIDENCE_PROB = {"HIGH": 0.85, "MEDIUM": 0.65, "LOW": 0.55}
 
 
@@ -41,7 +43,8 @@ def score_prediction(match_id: str, results_table, predictions_table) -> ScoredR
     confidence = prediction.get("confidence", "MEDIUM")
     prompt_version = prediction.get("prompt_version", "unknown")
 
-    correct = predicted_winner == actual_winner
+    # Compare on canonical slug so mixed stored forms (nickname / slug) score correctly.
+    correct = to_slug(predicted_winner) == to_slug(actual_winner)
     margin_error = abs(predicted_margin - actual_margin)
     p = _CONFIDENCE_PROB.get(confidence, 0.65)
     outcome = 1 if correct else 0
