@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from common.predictions import latest_before_kickoff
 from common.teams import to_slug
 
 _CONFIDENCE_PROB = {"HIGH": 0.85, "MEDIUM": 0.65, "LOW": 0.55}
@@ -21,7 +22,7 @@ class ResultNotReady(Exception):
     """No (canonical) result row exists yet for this match — score later, don't crash."""
 
 
-def score_prediction(match_id: str, results_table, predictions_table) -> ScoredResult:
+def score_prediction(match_id: str, results_table, predictions_table, kickoff=None) -> ScoredResult:
     result_resp = results_table.query(
         KeyConditionExpression="matchId = :m",
         ExpressionAttributeValues={":m": match_id},
@@ -40,7 +41,10 @@ def score_prediction(match_id: str, results_table, predictions_table) -> ScoredR
     ok_preds = [p for p in pred_resp["Items"] if p.get("status") == "OK"]
     if not ok_preds:
         raise ValueError(f"No OK prediction found for {match_id}")
-    prediction = ok_preds[0]
+    # Score the last prediction made BEFORE kickoff, not the latest overall — predictions get
+    # regenerated post-kickoff, and scoring those would reward hindsight.
+    prediction = latest_before_kickoff(ok_preds, kickoff)
+    assert prediction is not None  # ok_preds is non-empty, guaranteed above
 
     actual_winner = result["winner"]
     actual_margin = int(result["margin"])

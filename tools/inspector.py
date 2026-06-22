@@ -37,6 +37,7 @@ from decimal import Decimal
 import boto3
 
 from common.match_id import is_canonical
+from common.predictions import latest_before_kickoff
 from common.teams import display_name, to_slug
 
 REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
@@ -82,17 +83,17 @@ def num(v, default=None):
         return default
 
 
-def latest_per_match(preds: list[dict]) -> dict[str, dict]:
-    """Keep only the most recent prediction (by generatedAt) per matchId."""
-    best: dict[str, dict] = {}
+def latest_per_match(preds: list[dict], kickoffs: dict[str, str] | None = None) -> dict[str, dict]:
+    """The prediction to show per match: the last one made BEFORE kickoff (falling back to the
+    latest overall when kickoff is unknown). Avoids displaying post-kickoff regenerations as if
+    they were forecasts — see common.predictions.latest_before_kickoff."""
+    kickoffs = kickoffs or {}
+    grouped: dict[str, list[dict]] = {}
     for p in preds:
         mid = p.get("matchId")
-        if not mid:
-            continue
-        ts = p.get("generatedAt", "")
-        if mid not in best or ts > best[mid].get("generatedAt", ""):
-            best[mid] = p
-    return best
+        if mid:
+            grouped.setdefault(mid, []).append(p)
+    return {mid: latest_before_kickoff(ps, kickoffs.get(mid)) for mid, ps in grouped.items()}
 
 
 def results_by_match_id(results: list[dict]) -> dict[str, dict]:
@@ -111,6 +112,17 @@ def results_by_match_id(results: list[dict]) -> dict[str, dict]:
     return best
 
 
+def kickoffs_by_match(teams_items: list[dict]) -> dict[str, str]:
+    """Map matchId -> kickOff from the teams-table draw entries (so the board can pick the
+    last pre-kickoff prediction per match)."""
+    out: dict[str, str] = {}
+    for it in teams_items:
+        mid, ko = it.get("matchId"), it.get("kickOff")
+        if mid and ko:
+            out[mid] = ko
+    return out
+
+
 # ── Derived models ───────────────────────────────────────────────────────────
 
 def round_of(p: dict):
@@ -122,9 +134,10 @@ def all_rounds(preds: list[dict]) -> list[int]:
     return sorted(rs)
 
 
-def board_rows(preds: list[dict], results: list[dict], round_no: int) -> list[dict]:
-    """Rows for one round: latest prediction per match joined to its result."""
-    latest = latest_per_match([p for p in preds if round_of(p) == round_no])
+def board_rows(preds: list[dict], results: list[dict], round_no: int,
+               kickoffs: dict[str, str] | None = None) -> list[dict]:
+    """Rows for one round: last pre-kickoff prediction per match joined to its result."""
+    latest = latest_per_match([p for p in preds if round_of(p) == round_no], kickoffs)
     res_idx = results_by_match_id(results)
     rows = []
     for mid, p in sorted(latest.items()):
@@ -346,7 +359,7 @@ def _trace_html(t: dict) -> str:
 
 
 def render_html(cov: dict, preds: list[dict], results: list[dict], traces: list[dict],
-                rounds: list[int]) -> str:
+                rounds: list[int], kickoffs: dict[str, str] | None = None) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     v2_card = (f'<div class="n">{cov["v2"]}</div>' if cov["v2"]
                else '<div class="n warn">0</div>')
@@ -368,7 +381,7 @@ def render_html(cov: dict, preds: list[dict], results: list[dict], traces: list[
     ]
     parts.append("<h2>Round boards</h2>")
     for rn in sorted(rounds, reverse=True):
-        rows = board_rows(preds, results, rn)
+        rows = board_rows(preds, results, rn, kickoffs)
         scored = sum(1 for r in rows if r["correct"] is not None)
         hits = sum(1 for r in rows if r["correct"])
         acc = f" · {hits}/{scored} correct" if scored else ""
@@ -414,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
     preds = scan_table("predictions")
     results = scan_table("results")
     traces = scan_table("agent_traces")
+    kickoffs = kickoffs_by_match(scan_table("teams"))
 
     cov = coverage(preds, traces)
     rounds = all_rounds(preds)
@@ -423,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
     if rounds:
         targets = rounds if args.all else [args.round or max(rounds)]
         for rn in targets:
-            print_board(board_rows(preds, results, rn), rn)
+            print_board(board_rows(preds, results, rn, kickoffs), rn)
     else:
         print(C.yellow("\nno rounds found in predictions"))
 
@@ -431,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
         print_trace(args.match, trace_for(traces, args.match))
 
     if args.html:
-        out = render_html(cov, preds, results, traces, rounds)
+        out = render_html(cov, preds, results, traces, rounds, kickoffs)
         with open(args.html, "w", encoding="utf-8") as fh:
             fh.write(out)
         print(C.bold(f"\n→ wrote {args.html}") + C.dim(f" ({len(out):,} bytes)"))

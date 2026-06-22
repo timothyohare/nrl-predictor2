@@ -12,6 +12,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def _get_kickoff(match_id: str, round_number, teams_table) -> str | None:
+    """Kickoff time for a match from its draw entry in the teams table, or None."""
+    if teams_table is None:
+        return None
+    try:
+        item = teams_table.get_item(
+            Key={"teamId": f"{match_id}#home", "round": str(round_number)}
+        ).get("Item")
+    except Exception:
+        return None
+    return (item or {}).get("kickOff") or None
+
+
 def lambda_handler(event: dict, context) -> None:
     match_id = event["matchId"]
     round_number = event["round"]
@@ -21,12 +34,14 @@ def lambda_handler(event: dict, context) -> None:
     pred_table = ddb.Table(os.environ["PREDICTIONS_TABLE"])
     results_table = ddb.Table(os.environ["RESULTS_TABLE"])
     metrics_table = ddb.Table(os.environ["METRICS_TABLE"])
+    teams_table = ddb.Table(os.environ["TEAMS_TABLE"]) if os.environ.get("TEAMS_TABLE") else None
     odds_table_name = os.environ.get("ODDS_TABLE")
     odds_table = ddb.Table(odds_table_name) if odds_table_name else None
     scored_at = datetime.now(timezone.utc).isoformat()
 
     try:
-        scored = score_prediction(match_id, results_table, pred_table)
+        kickoff = _get_kickoff(match_id, round_number, teams_table)
+        scored = score_prediction(match_id, results_table, pred_table, kickoff=kickoff)
 
         # Read result item to carry homeTeam/score fields into scoring record
         result_resp = results_table.query(

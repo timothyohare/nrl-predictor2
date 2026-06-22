@@ -47,3 +47,21 @@ def test_scores_slug_vs_slug(tables):
                        "homeScore": 27, "awayScore": 8, "margin": 19, "matchState": "FullTime"})
     scored = score_prediction(MID, res, pred)
     assert scored.correct_pick is True  # "Sydney Roosters" -> roosters == winner roosters
+
+
+def test_scores_last_prediction_before_kickoff(tables):
+    """A post-kickoff regeneration must NOT be the one scored — pick the last pre-kickoff pred."""
+    pred, res = tables
+    ko = "2026-06-16T20:00:00Z"
+    # pre-kickoff forecast: sharks (wrong); post-kickoff hindsight: roosters (right)
+    pred.put_item(Item={"matchId": MID, "generatedAt": "2026-06-14T09:00:00Z",
+                        "predicted_winner": "sharks", "predicted_margin": 4,
+                        "confidence": "MEDIUM", "status": "OK"})
+    pred.put_item(Item={"matchId": MID, "generatedAt": "2026-06-17T09:00:00Z",
+                        "predicted_winner": "roosters", "predicted_margin": 18,
+                        "confidence": "HIGH", "status": "OK"})
+    res.put_item(Item={"matchId": MID, "scoredAt": "2026-06-16T22:00:00Z",
+                       "homeTeam": "roosters", "awayTeam": "sharks", "winner": "roosters",
+                       "homeScore": 27, "awayScore": 8, "margin": 19, "matchState": "FullTime"})
+    scored = score_prediction(MID, res, pred, kickoff=ko)
+    assert scored.correct_pick is False  # scored the pre-KO 'sharks' pick, not the hindsight one
