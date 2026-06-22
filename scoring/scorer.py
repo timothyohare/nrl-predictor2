@@ -17,6 +17,10 @@ class ScoredResult:
     prompt_version: str
 
 
+class ResultNotReady(Exception):
+    """No (canonical) result row exists yet for this match — score later, don't crash."""
+
+
 def score_prediction(match_id: str, results_table, predictions_table) -> ScoredResult:
     result_resp = results_table.query(
         KeyConditionExpression="matchId = :m",
@@ -24,6 +28,8 @@ def score_prediction(match_id: str, results_table, predictions_table) -> ScoredR
         ScanIndexForward=False,
         Limit=1,
     )
+    if not result_resp["Items"]:
+        raise ResultNotReady(f"No result row for {match_id}")
     result = result_resp["Items"][0]
 
     pred_resp = predictions_table.query(
