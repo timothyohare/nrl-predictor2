@@ -57,7 +57,16 @@ def make_primary_node(llm=None):
             from agent.lambda_handler import get_api_key
             base_llm = ChatAnthropic(model=model_name, api_key=get_api_key(), max_tokens=2048)
 
-        bound = base_llm.bind_tools(tools)
+        # Prompt caching for the ReAct loop. Each iteration re-sends the full,
+        # growing conversation (system + tool schemas + every accumulated tool
+        # result), so a top-level `cache_control` breakpoint lets iteration N read
+        # the prefix iteration N-1 wrote. ChatAnthropic forwards this to the direct
+        # Anthropic API as automatic "cache the last cacheable block" caching
+        # (langchain-anthropic >=1.4). Note: on Haiku 4.5 the cacheable-prefix floor
+        # is 4096 tokens, so the static system+tools prefix (~1-2K tokens) alone
+        # never caches — the win comes once accumulated tool results push the
+        # conversation past 4096, which is exactly where the repeated tokens are.
+        bound = base_llm.bind_tools(tools).bind(cache_control={"type": "ephemeral"})
 
         ctx = state.get("match_context", {})
         messages = [
