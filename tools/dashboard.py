@@ -58,10 +58,10 @@ def load(region: str) -> dict:
 
 def predictions_frame(preds: list[dict], results: list[dict]) -> pd.DataFrame:
     """Latest prediction per match, joined to its actual result, as a DataFrame."""
-    res_idx = ins.results_by_slug(results)
+    res_idx = ins.results_by_match_id(results)
     rows = []
     for mid, p in ins.latest_per_match(preds).items():
-        res = res_idx.get(ins.norm_match(mid))
+        res = res_idx.get(mid)  # round-aware: join on the full matchId, not the bare slug
         winner = p.get("predicted_winner")
         pmargin = ins.num(p.get("predicted_margin"))
         amargin = ins.num(res.get("margin")) if res else None
@@ -176,14 +176,14 @@ def page_variants(data: dict) -> None:
     for s in data["simulations"]:
         sims_by_variant.setdefault(s.get("variantId"), []).append(s)
     metrics = latest_by_key(data["variant_metrics"], "variantId", "period")
-    res_idx = ins.results_by_slug(data["results"])
+    res_idx = ins.results_by_match_id(data["results"])
 
     rows = []
     for vid, v in sorted(variants.items()):
         sims = sims_by_variant.get(vid, [])
         scored = correct = 0
         for s in sims:
-            res = res_idx.get(ins.norm_match(s.get("matchId", "")))
+            res = res_idx.get(s.get("matchId", ""))  # round-aware: join on full matchId
             if res and s.get("predicted_winner"):
                 scored += 1
                 correct += str(s["predicted_winner"]).lower() == str(res.get("winner", "")).lower()
