@@ -1,5 +1,12 @@
 # nrl-predictor2
 
+> [!IMPORTANT]
+> **This repository has moved.** As of 2026-06-29, v2 lives in the monorepo
+> **[timothyohare/nrl-predictor](https://github.com/timothyohare/nrl-predictor)**
+> under `v2/`, sharing one copy of `common/`, `scrapers/`, and `scoring/` with v1.
+> Both fleets now deploy from there. This repo is **archived** (read-only) and kept
+> only for history. Do not commit here — open changes against the monorepo.
+
 Multi-agent v2 rebuild of the NRL predictor. Uses a five-node LangGraph pipeline (Router → Primary → Challenger → Judge → Extended) to produce match predictions, running in shadow mode alongside v1.
 
 ## Architecture
